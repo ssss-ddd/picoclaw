@@ -1,0 +1,40 @@
+name: build-and-push-binary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # ⭐关键：允许写仓库
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+      - name: build binary
+        run: |
+          export GOOS=linux
+          export GOARCH=arm
+          export GOARM=7
+          export CGO_ENABLED=0
+
+          mkdir -p dist
+
+          go build -o dist/picoclaw ./cmd/picoclaw
+
+      - name: commit binary back to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add dist/picoclaw
+          git commit -m "update binary" || echo "no changes"
+          git push
