@@ -1,0 +1,71 @@
+name: Build ARM32 Termux (All-in-One Delivery)
+on: 
+  push:
+  workflow_dispatch: # 允许手动点击运行
+
+# 赋予 GitHub Actions 推送分支和发 Release 的权限
+permissions:
+  contents: write
+
+jobs:
+  build-and-deliver:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 1. 拉取代码
+      uses: actions/checkout@v4
+
+    - name: 2. 配置 Go 环境
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22' # 推荐 1.22，对 32 位支持稳定
+
+    - name: 3. 核心编译步骤
+      run: |
+        # 关闭 CGO，指定 Linux 系统和 ARM 32位架构
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags="-s -w" -o picoclaw-arm32 .
+        # 注意：如果提示找不到 main.go，请将上面这行结尾的 `.` 改为你实际的入口，例如 `cmd/picoclaw/main.go`
+        
+        # 赋予执行权限
+        chmod +x picoclaw-arm32
+
+    # ================= 下面是 4 种获取文件的不同方式 =================
+
+    - name: 【拿文件方式 1】上传到 GitHub Artifacts (常规压缩包)
+      uses: actions/upload-artifact@v4
+      with:
+        name: picoclaw-arm32-Artifact
+        path: picoclaw-arm32
+
+    - name: 【拿文件方式 2】自动生成 GitHub Release (直接下载链接)
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: arm32-latest
+        name: Termux 32-bit 专属编译版
+        body: "这是由 GitHub Actions 自动编译的 32 位 Android Termux 可执行文件。"
+        files: picoclaw-arm32
+        # 如果已经存在同名 tag，允许自动覆盖更新
+        make_latest: true
+
+    - name: 【拿文件方式 3】直接把文件存进代码库的独立分支 (bin-output)
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        # 创建或切换到一个名为 bin-output 的孤立分支
+        git checkout --orphan bin-output
+        # 清空其他不需要的代码文件，只保留编译好的程序
+        git rm -rf .
+        # 强制添加编译出来的文件
+        git add picoclaw-arm32 -f
+        git commit -m "Auto update ARM32 binary"
+        # 强制推送到远程仓库
+        git push origin bin-output -f
+
+    - name: 【拿文件方式 4】上传到免费公共网盘 (在日志里给你提取链接)
+      run: |
+        echo "正在上传到 bashupload 临时网盘..."
+        # 将文件上传到临时传输节点
+        URL=$(curl -s --upload-file picoclaw-arm32 https://bashupload.com/picoclaw-arm32)
+        echo "================================================="
+        echo "手机端最快下载方法，请复制以下链接到浏览器打开："
+        echo "$URL"
+        echo "================================================="
