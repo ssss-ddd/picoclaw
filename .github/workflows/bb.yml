@@ -14,13 +14,17 @@ jobs:
         with:
           go-version: 1.22
 
-      - name: 编译32位ARMv7
+      - name: 编译32位ARMv7（已修复报错）
         run: |
           mkdir -p dist
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o dist/picoclaw ./cmd/picoclaw
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+          go build -v \
+          -tags goolm,stdjson \
+          -ldflags "-s -w" \
+          -o dist/picoclaw ./cmd/picoclaw
 
-      - name: 上传文件(可下载)
+      - name: 上传可下载文件
         uses: actions/upload-artifact@v4
         with:
-          name: 我要的32位程序
+          name: 32位可执行文件
           path: dist/picoclaw
