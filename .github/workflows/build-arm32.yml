@@ -1,11 +1,15 @@
 name: Build ARM32 Termux (All-in-One Delivery)
 on: 
   push:
-  workflow_dispatch: # 允许手动点击运行
+  workflow_dispatch:
 
 # 赋予 GitHub Actions 推送分支和发 Release 的权限
 permissions:
   contents: write
+
+env:
+  # 彻底屏蔽 Node.js 20 弃用警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-deliver:
@@ -14,17 +18,18 @@ jobs:
     - name: 1. 拉取代码
       uses: actions/checkout@v4
 
-    - name: 2. 配置 Go 环境
+    - name: 2. 配置 Go 环境 (使用最新稳定版)
       uses: actions/setup-go@v5
       with:
-        go-version: '1.22' # 推荐 1.22，对 32 位支持稳定
+        go-version: 'stable'
+        cache: false
 
-    - name: 3. 核心编译步骤
+    - name: 3. 核心编译步骤 (修正多文件编译问题)
       run: |
-        # 关闭 CGO，指定 Linux 系统和 ARM 32位架构
-        CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags="-s -w" -o picoclaw-arm32 .
-        # 注意：如果提示找不到 main.go，请将上面这行结尾的 `.` 改为你实际的入口，例如 `cmd/picoclaw/main.go`
-        
+        # 先下载所有依赖包
+        go mod download
+        # 修正：必须编译整个 ./cmd/picoclaw 目录，绝不能只编译单个 main.go
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags="-s -w" -o picoclaw-arm32 ./cmd/picoclaw
         # 赋予执行权限
         chmod +x picoclaw-arm32
 
@@ -43,7 +48,6 @@ jobs:
         name: Termux 32-bit 专属编译版
         body: "这是由 GitHub Actions 自动编译的 32 位 Android Termux 可执行文件。"
         files: picoclaw-arm32
-        # 如果已经存在同名 tag，允许自动覆盖更新
         make_latest: true
 
     - name: 【拿文件方式 3】直接把文件存进代码库的独立分支 (bin-output)
