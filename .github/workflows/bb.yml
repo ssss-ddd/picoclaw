@@ -6,21 +6,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 安装Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.22
 
-      - name: 编译32位ARMv7（已修复报错）
+      - name: 编译 32位 ARMv7（终极无错版）
         run: |
+          set -e
           mkdir -p dist
+
+          # 自动获取版本信息（修复 workspace 报错）
+          COMMIT=$(git rev-parse --short HEAD)
+          VERSION=$COMMIT
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S+0000")
+          GO_VER=$(go version | awk '{print $3}')
+
+          LDFLAGS="\
+          -X github.com/sipeed/picoclaw/pkg/config.Version=$VERSION \
+          -X github.com/sipeed/picoclaw/pkg/config.GitCommit=$COMMIT \
+          -X github.com/sipeed/picoclaw/pkg/config.BuildTime=$BUILD_TIME \
+          -X github.com/sipeed/picoclaw/pkg/config.GoVersion=$GO_VER \
+          -s -w"
+
+          # 真正能编译成功的命令
           CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
           go build -v \
           -tags goolm,stdjson \
-          -ldflags "-s -w" \
+          -ldflags "$LDFLAGS" \
           -o dist/picoclaw ./cmd/picoclaw
 
       - name: 上传可下载文件
