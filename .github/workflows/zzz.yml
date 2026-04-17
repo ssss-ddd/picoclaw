@@ -1,0 +1,38 @@
+name: build-picoclaw-stable
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+      - name: build binaries
+        run: |
+          set -e  # ❗任何错误直接失败（防止“假成功”）
+
+          mkdir -p dist
+
+          export CGO_ENABLED=0
+
+          # 只保留你需要的 ARM 32位（盒子用）
+          GOOS=linux GOARCH=arm GOARM=7 \
+          go build -o dist/picoclaw ./cmd/picoclaw
+
+          echo "===== build ok ====="
+          ls -lh dist
+
+      - name: upload artifact (MANDATORY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: picoclaw-armv7
+          path: dist/picoclaw
