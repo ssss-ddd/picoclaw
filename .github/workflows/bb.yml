@@ -1,0 +1,26 @@
+name: 编译32位ARM
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉代码
+        uses: actions/checkout@v4
+
+      - name: 安装Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+      - name: 编译32位ARMv7
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o dist/picoclaw ./cmd/picoclaw
+
+      - name: 上传文件(可下载)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 我要的32位程序
+          path: dist/picoclaw
